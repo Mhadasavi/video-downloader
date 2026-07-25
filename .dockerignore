@@ -1,0 +1,10 @@
+.git
+.idea
+.venv
+venv
+bin/
+downloads/
+settings.json
+*.pyc
+*.pyo
+__pycache__/

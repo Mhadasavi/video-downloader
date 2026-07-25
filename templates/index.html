@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexStream - Advanced Video Downloader</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0b13;
+            --card-bg: rgba(22, 22, 37, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-grad: linear-gradient(135deg, #6366f1, #a855f7);
+            --accent-glow: rgba(99, 102, 241, 0.4);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Glowing background blobs */
+        .blob {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+        .blob-1 {
+            background-color: #6366f1;
+            top: -100px;
+            left: -100px;
+        }
+        .blob-2 {
+            background-color: #a855f7;
+            bottom: -100px;
+            right: -100px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 36px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #e9d5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Animated Settings Gear Button */
+        .settings-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        .settings-btn svg {
+            transition: transform 0.5s ease;
+        }
+        .settings-btn:hover svg {
+            transform: rotate(90deg);
+        }
+
+        /* Form Controls */
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1.5px solid var(--card-border);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        .input-group input[type="text"]:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Preview Card */
+        .preview-card {
+            display: none;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1.5px solid var(--card-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .preview-content {
+            display: flex;
+            gap: 16px;
+        }
+        .preview-thumb {
+            width: 160px;
+            height: 90px;
+            border-radius: 8px;
+            object-fit: cover;
+            background-color: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .preview-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex: 1;
+        }
+        .preview-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .preview-author {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .preview-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #818cf8;
+            font-weight: 500;
+            margin-top: auto;
+        }
+
+        /* Options Panel */
+        .options-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1.5px solid var(--card-border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        select:focus {
+            border-color: #6366f1;
+        }
+        select option {
+            background-color: #121222;
+            color: var(--text-primary);
+        }
+
+        /* Switch toggle styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1.5px solid var(--card-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .toggle-container:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .toggle-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background: var(--accent-grad);
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Scissor trimming icon animation */
+        .scissor-container svg {
+            transition: transform 0.3s ease;
+        }
+        .toggle-container:hover .scissor-container svg {
+            transform: rotate(-10deg) scale(1.05);
+        }
+        
+        .blade-left {
+            transform-origin: 12px 12px;
+            transition: transform 0.3s ease;
+        }
+        .blade-right {
+            transform-origin: 12px 12px;
+            transition: transform 0.3s ease;
+        }
+        .toggle-container:hover .blade-left {
+            transform: rotate(-6deg);
+        }
+        .toggle-container:hover .blade-right {
+            transform: rotate(6deg);
+        }
+
+        /* Trim Settings */
+        .trim-inputs {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: rgba(239, 68, 68, 0.03);
+            border: 1px dashed rgba(239, 68, 68, 0.2);
+            padding: 16px;
+            border-radius: 12px;
+            animation: slideDown 0.3s ease-out forwards;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); max-height: 0; overflow: hidden; padding-top: 0; padding-bottom: 0; }
+            to { opacity: 1; transform: translateY(0); max-height: 150px; }
+        }
+
+        .trim-inputs input {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1.5px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            outline: none;
+            text-align: center;
+            font-size: 14px;
+        }
+        .trim-inputs input:focus {
+            border-color: var(--danger-color);
+        }
+
+        /* Buttons & Actions */
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent-grad);
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            outline: none;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Animated Download Icon */
+        .download-arrow {
+            transition: transform 0.3s ease;
+        }
+        .btn:hover .download-arrow {
+            animation: bounce 1s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(3px); }
+        }
+
+        /* Downloading active animation */
+        .btn.downloading-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            box-shadow: none;
+            color: var(--text-secondary);
+        }
+        .btn.downloading-btn svg {
+            animation: spin 1.5s linear infinite;
+        }
+
+        /* Progress Card */
+        .progress-card {
+            display: none;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1.5px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 30px;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .progress-status {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            display: inline-block;
+        }
+        .dot.pulse {
+            animation: dot-pulse 1.5s infinite;
+        }
+        @keyframes dot-pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-grad);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            text-align: center;
+        }
+        .meta-box {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+        }
+        .meta-val {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 2px;
+        }
+        .meta-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Settings Drawer modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background: #11111e;
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .modal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        }
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .settings-row {
+            margin-bottom: 20px;
+        }
+        .path-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+        .path-input-wrapper input {
+            flex: 1;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1.5px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            outline: none;
+            font-size: 13px;
+        }
+        .path-input-wrapper input:focus {
+            border-color: #6366f1;
+        }
+        
+        .browse-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .browse-btn:hover {
+            background: rgba(255, 255, 255, 0.10);
+            border-color: rgba(255, 255, 255, 0.20);
+        }
+
+        .modal-actions {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .modal-btn-cancel {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1.5px solid var(--card-border);
+        }
+        .modal-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+        .modal-btn-save {
+            background: var(--accent-grad);
+            color: white;
+        }
+        .modal-btn-save:hover {
+            opacity: 0.9;
+        }
+
+        /* Success & Error State Visuals */
+        .status-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 20px 0;
+            animation: scaleIn 0.3s ease-out forwards;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .status-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 16px;
+            margin-bottom: 6px;
+        }
+        .status-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .success-path {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 0.6s ease-out forwards 0.2s;
+        }
+        @keyframes drawCheck {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .cross-path1 {
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+            animation: drawCross 0.4s ease-out forwards 0.2s;
+        }
+        .cross-path2 {
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+            animation: drawCross 0.4s ease-out forwards 0.4s;
+        }
+        @keyframes drawCross {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e1e2f;
+            border-left: 4px solid #6366f1;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        .toast.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast.success { border-left-color: var(--success-color); }
+        .toast.error { border-left-color: var(--danger-color); }
+
+        /* Scissoring SVG Scissors */
+        .trim-indicator {
+            display: inline-flex;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        /* Spin animations & Skeletons */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-color: rgba(255, 255, 255, 0.03); }
+            50% { background-color: rgba(255, 255, 255, 0.08); }
+            100% { background-color: rgba(255, 255, 255, 0.03); }
+        }
+        
+        .skeleton {
+            animation: skeleton-loading 1.5s infinite ease-in-out;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+        }
+        
+        .preview-card.loading .preview-thumb {
+            display: none;
+        }
+
+        /* App Two-Column Layout & Sidebar Styles */
+        .app-layout {
+            display: flex;
+            gap: 28px;
+            width: 100%;
+            max-width: 1060px;
+            margin: 0 auto;
+            align-items: flex-start;
+            justify-content: flex-start;
+            z-index: 10;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 360px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+        }
+        .sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .sidebar-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .related-card {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .related-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+        .related-card:active {
+            transform: translateY(0);
+        }
+        .related-thumb-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .related-thumb {
+            width: 100px;
+            height: 56px;
+            border-radius: 6px;
+            object-fit: cover;
+            background-color: #1a1a2e;
+        }
+        .related-duration {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .related-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        .related-title {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: var(--text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .related-uploader {
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 4px;
+        }
+        .related-views {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        @media (max-width: 1024px) {
+            .app-layout {
+                flex-direction: column;
+                align-items: center;
+                gap: 24px;
+            }
+            .sidebar {
+                width: 100%;
+                max-width: 680px;
+                max-height: none;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="app-layout">
+        <div class="container" id="appContainer">
+        <header>
+            <div class="logo">
+                <h1>NexStream</h1>
+                <p>Advanced Media Downloader & Cutter</p>
+            </div>
+            <button class="settings-btn" id="openSettings" title="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="gear-icon">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- URL Input -->
+        <div class="input-group">
+            <input type="text" id="videoUrl" placeholder="Paste video link here (e.g. YouTube, Vimeo...)" autocomplete="off">
+        </div>
+
+        <!-- Video Preview Card -->
+        <div class="preview-card" id="previewCard">
+            <div class="preview-content">
+                <div class="preview-thumb skeleton" id="thumbPlaceholder" style="display: none; align-items: center; justify-content: center;">
+                    <svg class="spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                    </svg>
+                </div>
+                <img class="preview-thumb" id="thumbImg" src="" alt="Thumbnail">
+                <div class="preview-info">
+                    <div>
+                        <div class="preview-title" id="previewTitle">Video Title Loading...</div>
+                        <div class="preview-author" id="previewAuthor">Channel</div>
+                    </div>
+                    <div class="preview-meta">
+                        <span id="previewDuration">0:00</span>
+                        <span id="previewViews" style="opacity: 0.8; font-weight: 500; margin-left: 8px;"></span>
+                        <span id="previewFormatLabel">READY</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Configurations -->
+        <div class="options-row" id="optionsRow">
+            <div>
+                <label for="downloadFormat">Format</label>
+                <select id="downloadFormat">
+                    <option value="mp4">MP4 (Video)</option>
+                    <option value="mp3">MP3 (Audio)</option>
+                </select>
+            </div>
+            <div id="qualityWrapper">
+                <label for="videoQuality">Quality Limit</label>
+                <select id="videoQuality">
+                    <option value="bestvideo+bestaudio/best">Best Quality (Auto)</option>
+                    <option value="bestvideo[height<=1080]+bestaudio/best">1080p (Full HD)</option>
+                    <option value="bestvideo[height<=720]+bestaudio/best">720p (HD)</option>
+                    <option value="bestvideo[height<=480]+bestaudio/best">480p</option>
+                    <option value="bestvideo[height<=360]+bestaudio/best">360p</option>
+                </select>
+            </div>
+            <div id="languageWrapper" style="display: none;">
+                <label for="audioLanguage">Audio Language</label>
+                <select id="audioLanguage">
+                    <option value="">Default Language</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Ask Where to Save Toggle -->
+        <div class="toggle-container" id="saveToggleContainer">
+            <div class="toggle-info">
+                <span style="display: inline-flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </span>
+                <span style="font-size: 14px; font-weight: 500; margin-left: 10px;">Ask where to save each time</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="askSaveEnabled">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <!-- Trim Segment Toggle -->
+        <div class="toggle-container" id="trimToggleContainer">
+            <div class="toggle-info">
+                <span class="scissor-container">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="6" r="3" class="blade-left"></circle>
+                        <circle cx="6" cy="18" r="3" class="blade-right"></circle>
+                        <line x1="9.8" y1="8.2" x2="21" y2="19" class="blade-left"></line>
+                        <line x1="9.8" y1="15.8" x2="21" y2="5" class="blade-right"></line>
+                    </svg>
+                </span>
+                <span style="font-size: 14px; font-weight: 500;">Trim video segment</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="trimEnabled">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <!-- Trim Settings Inputs -->
+        <div class="trim-inputs" id="trimInputs">
+            <div>
+                <label for="trimStart" style="color: var(--danger-color);">Start Time</label>
+                <input type="text" id="trimStart" placeholder="HH:MM:SS (e.g. 00:01:20)">
+            </div>
+            <div>
+                <label for="trimEnd" style="color: var(--danger-color);">End Time</label>
+                <input type="text" id="trimEnd" placeholder="HH:MM:SS (e.g. 00:02:10)">
+            </div>
+        </div>
+
+        <!-- Action Button -->
+        <button class="btn" id="downloadBtn">
+            <svg class="download-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download Media</span>
+        </button>
+
+        <!-- Progress dashboard -->
+        <div class="progress-card" id="progressCard">
+            <div class="progress-header">
+                <div class="progress-status" id="progressStatusText">
+                    <span class="dot pulse"></span>
+                    <span>Downloading...</span>
+                </div>
+                <div style="font-weight: 700; color: #818cf8;" id="progressPercent">0%</div>
+            </div>
+            
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div class="progress-meta">
+                <div class="meta-box">
+                    <div class="meta-label">Speed</div>
+                    <div class="meta-val" id="downloadSpeed">N/A</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">ETA</div>
+                    <div class="meta-val" id="downloadEta">N/A</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Format</div>
+                    <div class="meta-val" id="downloadFormatLabel">MP4</div>
+                </div>
+            </div>
+            
+            <!-- Target visual completed / error -->
+            <div id="statusVisualContainer"></div>
+        </div>
+    </div>
+
+    <!-- Sidebar Panel for Related Videos -->
+    <div class="sidebar" id="sidebarPanel" style="display: none;">
+            <div class="sidebar-header">
+                <h2>Related Videos</h2>
+                <div class="sidebar-subtitle">Recommended matches</div>
+            </div>
+            <div class="related-list" id="relatedList">
+                <!-- Related videos will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Preferences</div>
+                <button class="close-btn" id="closeSettings">&times;</button>
+            </div>
+            
+            <div class="settings-row">
+                <label for="settingsDownloadFolder">Download Folder</label>
+                <div class="path-input-wrapper">
+                    <input type="text" id="settingsDownloadFolder" readonly placeholder="No path selected">
+                    <button class="browse-btn" id="browseFolderBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Browse
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <label for="settingsFfmpegFolder">FFmpeg Bin Folder (Optional)</label>
+                <div class="path-input-wrapper">
+                    <input type="text" id="settingsFfmpegFolder" placeholder="Default (System PATH)">
+                </div>
+                <span style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block;">
+                    Leave blank if FFmpeg is in your system's environment PATH.
+                </span>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelSettingsBtn">Cancel</button>
+                <button class="modal-btn modal-btn-save" id="saveSettingsBtn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span id="toastIcon"></span>
+        <span id="toastMessage">Notification message</span>
+    </div>
+
+    <script>
+        // DOM Elements
+        const videoUrlInput = document.getElementById('videoUrl');
+        const previewCard = document.getElementById('previewCard');
+        const thumbImg = document.getElementById('thumbImg');
+        const previewTitle = document.getElementById('previewTitle');
+        const previewAuthor = document.getElementById('previewAuthor');
+        const previewDuration = document.getElementById('previewDuration');
+        const previewFormatLabel = document.getElementById('previewFormatLabel');
+        
+        const optionsRow = document.getElementById('optionsRow');
+        const languageWrapper = document.getElementById('languageWrapper');
+        const audioLanguage = document.getElementById('audioLanguage');
+        
+        const downloadFormat = document.getElementById('downloadFormat');
+        const qualityWrapper = document.getElementById('qualityWrapper');
+        const videoQuality = document.getElementById('videoQuality');
+        
+        const saveToggleContainer = document.getElementById('saveToggleContainer');
+        const askSaveEnabled = document.getElementById('askSaveEnabled');
+        
+        const trimToggleContainer = document.getElementById('trimToggleContainer');
+        const trimEnabled = document.getElementById('trimEnabled');
+        const trimInputs = document.getElementById('trimInputs');
+        const trimStart = document.getElementById('trimStart');
+        const trimEnd = document.getElementById('trimEnd');
+        
+        const downloadBtn = document.getElementById('downloadBtn');
+        const progressCard = document.getElementById('progressCard');
+        const progressStatusText = document.getElementById('progressStatusText');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressBar = document.getElementById('progressBar');
+        const downloadSpeed = document.getElementById('downloadSpeed');
+        const downloadEta = document.getElementById('downloadEta');
+        const downloadFormatLabel = document.getElementById('downloadFormatLabel');
+        const statusVisualContainer = document.getElementById('statusVisualContainer');
+        
+        const openSettings = document.getElementById('openSettings');
+        const closeSettings = document.getElementById('closeSettings');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsDownloadFolder = document.getElementById('settingsDownloadFolder');
+        const settingsFfmpegFolder = document.getElementById('settingsFfmpegFolder');
+        const browseFolderBtn = document.getElementById('browseFolderBtn');
+        const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = document.getElementById('toastIcon');
+
+        let appSettings = {};
+        let activeDownloadState = 'idle';
+
+        // Load Settings on Start
+        async function fetchSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                appSettings = await res.json();
+                settingsDownloadFolder.value = appSettings.download_path || '';
+                settingsFfmpegFolder.value = appSettings.ffmpeg_path || '';
+            } catch (err) {
+                showToast("Failed to load settings.", "error");
+            }
+        }
+        fetchSettings();
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            toastMessage.textContent = message;
+            toast.className = `toast ${type}`;
+            
+            // Set Icon
+            if (type === 'success') {
+                toastIcon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${window.getComputedStyle(document.documentElement).getPropertyValue('--success-color')}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else if (type === 'error') {
+                toastIcon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${window.getComputedStyle(document.documentElement).getPropertyValue('--danger-color')}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+            } else {
+                toastIcon.innerHTML = '';
+            }
+            
+            toast.classList.add('active');
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 4000);
+        }
+
+        // Toggle Save Location Option
+        saveToggleContainer.addEventListener('click', (e) => {
+            if (e.target.id === 'askSaveEnabled' || e.target.closest('.slider')) return;
+            askSaveEnabled.checked = !askSaveEnabled.checked;
+        });
+
+        // Toggle Trim Panel Visibility
+        trimToggleContainer.addEventListener('click', (e) => {
+            // Prevent double triggers due to nested elements
+            if (e.target.id === 'trimEnabled' || e.target.closest('.slider')) return;
+            trimEnabled.checked = !trimEnabled.checked;
+            trimEnabled.dispatchEvent(new Event('change'));
+        });
+
+        trimEnabled.addEventListener('change', () => {
+            if (trimEnabled.checked) {
+                trimInputs.style.display = 'grid';
+            } else {
+                trimInputs.style.display = 'none';
+            }
+        });
+
+        // Toggle Quality dropdown based on MP4/MP3 format
+        downloadFormat.addEventListener('change', () => {
+            if (downloadFormat.value === 'mp3') {
+                qualityWrapper.style.opacity = '0.4';
+                videoQuality.disabled = true;
+                trimToggleContainer.style.opacity = '0.4';
+                trimEnabled.disabled = true;
+                trimEnabled.checked = false;
+                trimInputs.style.display = 'none';
+            } else {
+                qualityWrapper.style.opacity = '1';
+                videoQuality.disabled = false;
+                trimToggleContainer.style.opacity = '1';
+                trimEnabled.disabled = false;
+            }
+        });
+
+        // Fetch Metadata on URL Paste/Blur
+        let fetchTimeout;
+        videoUrlInput.addEventListener('input', () => {
+            clearTimeout(fetchTimeout);
+            const url = videoUrlInput.value.trim();
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                fetchTimeout = setTimeout(fetchMetadata, 800);
+            }
+        });
+
+        async function fetchMetadata() {
+            const url = videoUrlInput.value.trim();
+            if (!url) return;
+            
+            // Reset language options
+            if (audioLanguage) {
+                audioLanguage.innerHTML = '<option value="">Default Language</option>';
+            }
+            if (languageWrapper) {
+                languageWrapper.style.display = 'none';
+            }
+            if (optionsRow) {
+                optionsRow.style.gridTemplateColumns = '1fr 1fr';
+            }
+            
+            previewCard.style.display = 'block';
+            previewCard.classList.add('loading');
+            
+            previewTitle.innerHTML = '<div class="skeleton" style="height: 18px; width: 80%; margin-bottom: 8px;"></div><div class="skeleton" style="height: 18px; width: 50%;"></div>';
+            previewAuthor.innerHTML = '<div class="skeleton" style="height: 12px; width: 30%;"></div>';
+            previewDuration.innerHTML = '<div class="skeleton" style="height: 12px; width: 40px;"></div>';
+            const previewViews = document.getElementById('previewViews');
+            if (previewViews) previewViews.textContent = '';
+            
+            const thumbPlaceholder = document.getElementById('thumbPlaceholder');
+            thumbImg.style.display = 'none';
+            if (thumbPlaceholder) thumbPlaceholder.style.display = 'flex';
+            
+            // Disable button locally to show analyzing progress
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = `
+                <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                <span>Analyzing Link...</span>
+            `;
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+            
+            try {
+                const res = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || "Failed to fetch metadata.");
+                }
+                
+                const meta = await res.json();
+                previewTitle.textContent = meta.title;
+                previewAuthor.textContent = meta.uploader;
+                previewDuration.textContent = meta.duration;
+                
+                const previewViews = document.getElementById('previewViews');
+                if (previewViews) {
+                    previewViews.textContent = meta.views ? `•  ${meta.views}` : '';
+                }
+                
+                if (meta.thumbnail) {
+                    thumbImg.src = meta.thumbnail;
+                    thumbImg.style.display = 'block';
+                    if (thumbPlaceholder) thumbPlaceholder.style.display = 'none';
+                }
+                
+                // Populate languages
+                if (meta.languages && meta.languages.length > 1) {
+                    meta.languages.forEach(lang => {
+                        const opt = document.createElement('option');
+                        opt.value = lang.code;
+                        opt.textContent = lang.name;
+                        audioLanguage.appendChild(opt);
+                    });
+                    languageWrapper.style.display = 'block';
+                    optionsRow.style.gridTemplateColumns = '1fr 1fr 1fr';
+                } else {
+                    languageWrapper.style.display = 'none';
+                    optionsRow.style.gridTemplateColumns = '1fr 1fr';
+                }
+                
+                previewCard.classList.remove('loading');
+                
+                // Fetch related videos in parallel
+                fetchRelatedVideos(meta.title, meta.uploader, meta.id);
+                
+                // Only enable download button if the backend is idle
+                if (['idle', 'completed', 'error'].includes(activeDownloadState)) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <svg class="download-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Download Media</span>
+                    `;
+                }
+                
+            } catch (err) {
+                clearTimeout(timeoutId);
+                previewTitle.textContent = "Invalid video link or extraction error.";
+                previewAuthor.textContent = "Error";
+                previewCard.classList.remove('loading');
+                if (thumbPlaceholder) thumbPlaceholder.style.display = 'none';
+                
+                if (err.name === 'AbortError') {
+                    showToast("Metadata extraction timed out. Please try again.", "error");
+                } else {
+                    showToast(err.message, "error");
+                }
+                
+                if (['idle', 'completed', 'error'].includes(activeDownloadState)) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <svg class="download-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Download Media</span>
+                    `;
+                }
+            }
+        }
+
+        // Trigger Download
+        downloadBtn.addEventListener('click', async () => {
+            const url = videoUrlInput.value.trim();
+            if (!url) {
+                showToast("Please enter a video URL first.", "error");
+                return;
+            }
+
+            let customPath = null;
+            if (askSaveEnabled.checked) {
+                try {
+                    downloadBtn.disabled = true;
+                    downloadBtn.innerHTML = `
+                        <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="2" x2="12" y2="6"></line>
+                            <line x1="12" y1="18" x2="12" y2="22"></line>
+                            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                            <line x1="2" y1="12" x2="6" y2="12"></line>
+                            <line x1="18" y1="12" x2="22" y2="12"></line>
+                            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                        </svg>
+                        <span>Choosing folder...</span>
+                    `;
+                    const res = await fetch('/api/select-folder', { method: 'POST' });
+                    const data = await res.json();
+                    
+                    if (data.selected) {
+                        customPath = data.selected;
+                    } else {
+                        showToast("Download cancelled (no folder chosen).", "error");
+                        resetDownloadButtonState();
+                        return;
+                    }
+                } catch (err) {
+                    showToast("Failed to select folder.", "error");
+                    resetDownloadButtonState();
+                    return;
+                }
+            }
+
+            const body = {
+                url,
+                format: downloadFormat.value,
+                quality: videoQuality.value,
+                language: audioLanguage.value,
+                trim_enabled: trimEnabled.checked,
+                trim_start: trimStart.value,
+                trim_end: trimEnd.value,
+                download_path: customPath
+            };
+
+            try {
+                const res = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || "Download could not be initiated.");
+                }
+                
+                statusVisualContainer.innerHTML = '';
+                progressCard.style.display = 'block';
+                downloadBtn.disabled = true;
+                videoUrlInput.disabled = true;
+                
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        // SSE Real-time Updates Setup
+        const evtSource = new EventSource("/api/progress");
+        
+        evtSource.onerror = function(err) {
+            console.error("SSE EventSource encountered an error, auto-reconnecting...", err);
+        };
+        
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (!data) return;
+            
+            activeDownloadState = data.status;
+            
+            // Format format text
+            downloadFormatLabel.textContent = downloadFormat.value.toUpperCase();
+            
+            // Update inputs and buttons depending on status
+            if (['downloading', 'fetching', 'processing', 'trimming'].includes(data.status)) {
+                downloadBtn.disabled = true;
+                downloadBtn.classList.add('downloading-btn');
+                downloadBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                    </svg>
+                    <span>${data.status.charAt(0).toUpperCase() + data.status.slice(1)}...</span>
+                `;
+                progressCard.style.display = 'block';
+                videoUrlInput.disabled = true;
+            } else {
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('downloading-btn');
+                downloadBtn.innerHTML = `
+                    <svg class="download-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Download Media</span>
+                `;
+                videoUrlInput.disabled = false;
+            }
+
+            // Sync visual metadata in preview card if fetched on back-end
+            if (data.title && data.title !== 'Fetching metadata...') {
+                previewCard.style.display = 'block';
+                previewTitle.textContent = data.title;
+                previewAuthor.textContent = data.uploader;
+                previewDuration.textContent = data.duration;
+                if (data.thumbnail) thumbImg.src = data.thumbnail;
+            }
+
+            // Update Progress UI elements
+            progressBar.style.width = `${data.percent}%`;
+            progressPercent.textContent = `${data.percent}%`;
+            
+            // Format status labels
+            let statusText = "Ready";
+            let dotColor = "rgba(255,255,255,0.2)";
+            let isPulse = false;
+
+            if (data.status === 'fetching') {
+                statusText = "Loading details...";
+                dotColor = varColor('--warning-color');
+                isPulse = true;
+                downloadSpeed.textContent = "N/A";
+                downloadEta.textContent = "N/A";
+            } else if (data.status === 'downloading') {
+                statusText = `Downloading (${data.percent}%)`;
+                dotColor = "#6366f1";
+                isPulse = true;
+                downloadSpeed.textContent = data.speed || 'N/A';
+                downloadEta.textContent = data.eta || 'N/A';
+            } else if (data.status === 'processing') {
+                const isAudio = downloadFormat.value === 'mp3';
+                statusText = isAudio ? "Extracting audio..." : "Blending streams...";
+                dotColor = varColor('--warning-color');
+                isPulse = true;
+                downloadSpeed.textContent = data.speed || (isAudio ? "Converting..." : "FFmpeg merging");
+                downloadEta.textContent = data.eta || "Processing";
+            } else if (data.status === 'trimming') {
+                statusText = "Trimming clip...";
+                dotColor = varColor('--danger-color');
+                isPulse = true;
+                downloadSpeed.textContent = "FFmpeg cutting";
+                downloadEta.textContent = "Processing";
+            } else if (data.status === 'completed') {
+                statusText = "Success";
+                dotColor = varColor('--success-color');
+                downloadSpeed.textContent = "Done";
+                downloadEta.textContent = "0s";
+                
+                // Show completion checkmark visual
+                statusVisualContainer.innerHTML = `
+                    <div class="status-visual">
+                        <svg width="60" height="60" viewBox="0 0 52 52" fill="none">
+                            <circle cx="26" cy="26" r="25" stroke="${varColor('--success-color')}" stroke-width="3"></circle>
+                            <path class="success-path" d="M14 27l10 10 16-18" stroke="${varColor('--success-color')}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <div class="status-title" style="color: var(--success-color)">Download Successful</div>
+                        <div class="status-desc">${data.filepath ? getFilename(data.filepath) : 'File downloaded successfully'}</div>
+                        <button class="browse-btn" onclick="openFileDirectory('${escapeFilePath(data.filepath)}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            Reveal in Explorer
+                        </button>
+                    </div>
+                `;
+                showToast("Download completed successfully!");
+            } else if (data.status === 'error') {
+                statusText = "Download Failed";
+                dotColor = varColor('--danger-color');
+                downloadSpeed.textContent = "Error";
+                downloadEta.textContent = "N/A";
+                
+                // Show error visual
+                statusVisualContainer.innerHTML = `
+                    <div class="status-visual shake-element">
+                        <svg width="60" height="60" viewBox="0 0 52 52" fill="none">
+                            <circle cx="26" cy="26" r="25" stroke="${varColor('--danger-color')}" stroke-width="3"></circle>
+                            <path class="cross-path1" d="M16 16l20 20" stroke="${varColor('--danger-color')}" stroke-width="4" stroke-linecap="round"></path>
+                            <path class="cross-path2" d="M36 16L16 36" stroke="${varColor('--danger-color')}" stroke-width="4" stroke-linecap="round"></path>
+                        </svg>
+                        <div class="status-title" style="color: var(--danger-color)">Error Occurred</div>
+                        <div class="status-desc" style="max-width: 80%; line-height: 1.4">${data.error || 'An error occurred during download'}</div>
+                    </div>
+                `;
+                showToast(data.error || "An error occurred.", "error");
+            }
+
+            progressStatusText.innerHTML = `
+                <span class="dot ${isPulse ? 'pulse' : ''}" style="background-color: ${dotColor}"></span>
+                <span>${statusText}</span>
+            `;
+        };
+
+        function varColor(variableName) {
+            return window.getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+        }
+
+        function getFilename(path) {
+            return path.split(/[\\/]/).pop();
+        }
+
+        function escapeFilePath(path) {
+            return path.replace(/\\/g, '\\\\');
+        }
+
+        // Settings Modal Handlers
+        openSettings.addEventListener('click', () => {
+            settingsModal.classList.add('active');
+        });
+        
+        const closeModal = () => {
+            settingsModal.classList.remove('active');
+        };
+        
+        closeSettings.addEventListener('click', closeModal);
+        cancelSettingsBtn.addEventListener('click', closeModal);
+        
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeModal();
+        });
+
+        // Browse Folder Button (triggers native Dialog via Flask server)
+        browseFolderBtn.addEventListener('click', async () => {
+            browseFolderBtn.disabled = true;
+            try {
+                const res = await fetch('/api/select-folder', { method: 'POST' });
+                const data = await res.json();
+                if (data.selected) {
+                    settingsDownloadFolder.value = data.selected;
+                }
+            } catch (err) {
+                showToast("Failed to open folder chooser.", "error");
+            } finally {
+                browseFolderBtn.disabled = false;
+            }
+        });
+
+        // Save Settings
+        saveSettingsBtn.addEventListener('click', async () => {
+            const body = {
+                download_path: settingsDownloadFolder.value.trim(),
+                ffmpeg_path: settingsFfmpegFolder.value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!res.ok) throw new Error("Could not save settings.");
+                
+                const data = await res.json();
+                appSettings = data.settings;
+                showToast("Settings saved successfully.");
+                closeModal();
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+
+        // Fallback placeholder/explorer reveal helper
+        function openFileDirectory(filePath) {
+            // Note: Since this runs in a local browser, we could add an API endpoint to openexplorer if we want.
+            // Let's create an endpoint in app.py to reveal the folder, it is extremely premium!
+            // Let's call the API endpoint /api/reveal
+            fetch('/api/reveal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: filePath })
+            }).then(res => {
+                if (!res.ok) showToast("Could not open file location.", "error");
+            }).catch(() => {
+                showToast("Could not open file location.", "error");
+            });
+        }
+
+        // Fetch Related Videos using ytsearch
+        async function fetchRelatedVideos(title, uploader, id = '') {
+            const sidebarPanel = document.getElementById('sidebarPanel');
+            const relatedList = document.getElementById('relatedList');
+            
+            sidebarPanel.style.display = 'block';
+            relatedList.innerHTML = `
+                <div style="display: flex; justify-content: center; padding: 30px 0;">
+                    <svg class="spinner" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                    </svg>
+                </div>
+            `;
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+            
+            try {
+                const res = await fetch('/api/related', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, uploader, id }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!res.ok) throw new Error("Failed to fetch related videos.");
+                
+                const videos = await res.json();
+                
+                if (videos.length === 0) {
+                    relatedList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px 0; font-size: 13px;">No related videos found.</div>';
+                    return;
+                }
+                
+                relatedList.innerHTML = '';
+                videos.forEach(video => {
+                    const card = document.createElement('div');
+                    card.className = 'related-card';
+                    card.innerHTML = `
+                        <div class="related-thumb-wrapper">
+                            <img class="related-thumb" src="${video.thumbnail}" alt="">
+                            <span class="related-duration">${video.duration}</span>
+                        </div>
+                        <div class="related-info">
+                            <div class="related-title" title="${video.title}">${video.title}</div>
+                            <div class="related-uploader">${video.uploader}</div>
+                            <div class="related-views">${video.views || ''}</div>
+                        </div>
+                    `;
+                    
+                    card.addEventListener('click', () => {
+                        videoUrlInput.value = video.url;
+                        fetchMetadata();
+                    });
+                    
+                    relatedList.appendChild(card);
+                });
+                
+            } catch (err) {
+                clearTimeout(timeoutId);
+                relatedList.innerHTML = `<div style="color: var(--danger-color); text-align: center; padding: 20px 0; font-size: 13px;">Error loading related videos.</div>`;
+            }
+        }
+
+        // Helper to reset download button UI
+        function resetDownloadButtonState() {
+            downloadBtn.disabled = false;
+            downloadBtn.classList.remove('downloading-btn');
+            downloadBtn.innerHTML = `
+                <svg class="download-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Download Media</span>
+            `;
+            videoUrlInput.disabled = false;
+        }
+        
+        // Hide sidebar when URL input is cleared
+        videoUrlInput.addEventListener('input', () => {
+            if (!videoUrlInput.value.trim()) {
+                document.getElementById('sidebarPanel').style.display = 'none';
+                previewCard.style.display = 'none';
+            }
+        });
+        
+        // Hide sidebar if error occurs during download
+        evtSource.addEventListener('message', (e) => {
+            const data = JSON.parse(e.data);
+            if (data && data.status === 'error') {
+                document.getElementById('sidebarPanel').style.display = 'none';
+            }
+        });
+        
+        // Close related sidebar when settings modal opens, to look cleaner on small screens
+        openSettings.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                document.getElementById('sidebarPanel').style.display = 'none';
+            }
+        });
+        
+        // When download starts, hide related videos sidebar to keep layout compact and clean
+        downloadBtn.addEventListener('click', () => {
+            if (videoUrlInput.value.trim() && !askSaveEnabled.checked) {
+                document.getElementById('sidebarPanel').style.display = 'none';
+            }
+        });
+        
+        // Listen to events and hide sidebar if download starts
+        evtSource.addEventListener('message', (e) => {
+            const data = JSON.parse(e.data);
+            if (data && ['downloading', 'processing', 'trimming'].includes(data.status)) {
+                document.getElementById('sidebarPanel').style.display = 'none';
+            }
+        });
+        
+        // Show related sidebar again on completed/error if we still have url
+        evtSource.addEventListener('message', (e) => {
+            const data = JSON.parse(e.data);
+            if (data && ['completed', 'error'].includes(data.status) && videoUrlInput.value.trim()) {
+                const previewTitleVal = previewTitle.textContent;
+                if (previewTitleVal && previewTitleVal !== 'Video Title Loading...' && previewTitleVal !== 'Analyzing link, please wait...') {
+                    document.getElementById('sidebarPanel').style.display = 'block';
+                }
+            }
+        });
+        
+        // Ensure settings are synced on modal open
+        openSettings.addEventListener('click', () => {
+            fetchSettings();
+        });
+        
+        // Prevent toggle issue
+        document.getElementById('saveToggleContainer').addEventListener('click', (e) => {
+            if (e.target.id === 'askSaveEnabled' || e.target.closest('.slider')) return;
+            askSaveEnabled.checked = !askSaveEnabled.checked;
+        });
+    </script>
+</body>
+</html>
