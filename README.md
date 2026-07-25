@@ -17,11 +17,12 @@ NexStream is a modern, production-grade web application designed for downloading
 
 ---
 
-## Prerequisites
+## Prerequisites (Local Setup)
 
+If you are running the application locally on the host machine (instead of using Docker), you need:
 1.  **Python 3.8+**: Recommended to run inside a virtual environment.
-2.  **Node.js**: Required by `yt-dlp` to run JavaScript challenge solvers for YouTube's decryption mechanisms.
-3.  **FFmpeg**: Required for merging video and audio streams, extracting audio as MP3, and trimming clips.
+2.  **Deno** (or **Node.js**): Required by `yt-dlp` to run JavaScript challenge solvers for YouTube's decryption mechanisms.
+3.  **FFmpeg**: Required for merging video and audio streams, extracting audio as MP3, and trimming clips. (An auto-bundled version is set up using `imageio-ffmpeg` if not globally found in PATH).
 
 ---
 
@@ -42,7 +43,7 @@ NexStream is a modern, production-grade web application designed for downloading
 
 3.  **Install Dependencies**:
     ```bash
-    pip install Flask yt-dlp yt-dlp-ejs
+    pip install -r requirements.txt
     ```
 
 ---
@@ -75,6 +76,23 @@ python app.py
 **Example (Linux / macOS / Bash):**
 ```bash
 FLASK_PORT=5001 FLASK_HOST=0.0.0.0 python app.py
+```
+
+---
+
+## Docker Setup & Containerized Run
+
+The application is fully containerized. Running it via Docker automatically installs all dependencies (system-wide `FFmpeg` and `Deno` as the challenge-solving JS runtime), so you don't need any local setup.
+
+### Run with Docker Compose:
+```bash
+docker compose up --build -d
+```
+This builds the container and maps port `5000:5000` to your host machine. It mounts your host's local `./downloads` folder to the container's `/root/Downloads` directory so that all downloads are stored directly in your workspace.
+
+### Stop the Container:
+```bash
+docker compose down
 ```
 
 ---
