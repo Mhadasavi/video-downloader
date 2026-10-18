@@ -376,6 +376,15 @@ def run_download_thread(url, download_format, video_quality, trim_start, trim_en
 def index():
     return render_template('index.html')
 
+def get_ytdlp_version():
+    """Helper to retrieve the installed yt-dlp version."""
+    try:
+        import yt_dlp
+        return yt_dlp.version.__version__
+    except Exception as e:
+        logger.warning(f"Could not retrieve yt-dlp version: {e}")
+        return "Unknown"
+
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     global settings
@@ -385,43 +394,94 @@ def api_settings():
         settings['ffmpeg_path'] = data.get('ffmpeg_path', settings['ffmpeg_path'])
         save_settings(settings)
         return jsonify({"success": True, "settings": settings})
-    return jsonify(settings)
+    
+    # Return settings along with the current version
+    response_data = settings.copy()
+    response_data['ytdlp_version'] = get_ytdlp_version()
+    return jsonify(response_data)
+
+@app.route('/api/update-ytdlp', methods=['POST'])
+def api_update_ytdlp():
+    """Upgrade yt-dlp to the latest version via pip."""
+    try:
+        old_version = get_ytdlp_version()
+        logger.info(f"Upgrading yt-dlp via UI request. Current version: {old_version}")
+        
+        # Run pip install -U yt-dlp using sys.executable to target the active environment
+        command = [sys.executable, "-m", "pip", "install", "-U", "yt-dlp"]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            # Force reload of the cached module to reflect the version change
+            try:
+                import importlib
+                import yt_dlp
+                importlib.reload(yt_dlp)
+            except Exception as reload_err:
+                logger.warning(f"Could not reload yt_dlp module: {reload_err}")
+                
+            new_version = get_ytdlp_version()
+            logger.info(f"Successfully upgraded yt-dlp to version {new_version}")
+            return jsonify({
+                "success": True,
+                "message": f"Successfully upgraded yt-dlp from {old_version} to {new_version}.",
+                "old_version": old_version,
+                "new_version": new_version
+            })
+        else:
+            logger.error(f"Failed to upgrade yt-dlp: {result.stderr}")
+            return jsonify({
+                "success": False,
+                "error": f"Upgrade failed: {result.stderr or result.stdout}"
+            }), 500
+            
+    except Exception as e:
+        logger.exception(f"Exception during yt-dlp upgrade: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/api/select-folder', methods=['POST'])
 def api_select_folder():
-    """Trigger a native folder selection dialog using Tkinter."""
+    """Trigger a native folder selection dialog using Tkinter in a separate process to avoid thread conflicts."""
     if os.path.exists('/.dockerenv'):
         return jsonify({"error": "Folder selection dialog is not supported inside container environments. Please enter the path manually."}), 400
     try:
-        # We need to run Tkinter inside a separate thread because Tkinter blocks,
-        # and running it inside Flask request handler directly on Windows can sometimes hang.
-        # But we can run it synchronously here if we handle root correctly.
-        folder_queue = queue.Queue()
+        # Run a standalone Python one-liner in a subprocess. This prevents thread deadlock on Windows/Flask.
+        initial_dir = settings.get('download_path', '')
+        # Escape backslashes for python script argument
+        initial_dir_escaped = initial_dir.replace('\\', '\\\\')
         
-        def ask_dir():
-            try:
-                from tkinter import Tk, filedialog
-                root = Tk()
-                root.withdraw()
-                root.attributes('-topmost', True)
-                folder = filedialog.askdirectory(initialdir=settings['download_path'])
-                root.destroy()
-                folder_queue.put(folder)
-            except Exception as ex:
-                folder_queue.put(ex)
-                
-        t = threading.Thread(target=ask_dir)
-        t.start()
-        t.join()
+        script = (
+            "import tkinter as tk; "
+            "from tkinter import filedialog; "
+            "root = tk.Tk(); "
+            "root.withdraw(); "
+            "root.attributes('-topmost', True); "
+            f"print(filedialog.askdirectory(initialdir='{initial_dir_escaped}'), end='')"
+        )
         
-        result = folder_queue.get()
-        if isinstance(result, Exception):
-            raise result
+        logger.info(f"Opening folder picker subprocess with initialdir: {initial_dir}")
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode == 0:
+            selected_path = result.stdout.strip()
+            if selected_path:
+                logger.info(f"User selected folder: {selected_path}")
+                return jsonify({"selected": selected_path})
+            logger.info("User cancelled folder picker.")
+            return jsonify({"selected": None})
+        else:
+            raise RuntimeError(result.stderr or "Subprocess failed to run.")
             
-        if result:
-            return jsonify({"selected": result})
-        return jsonify({"selected": None})
     except Exception as e:
+        logger.exception(f"Error in api_select_folder: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/info', methods=['POST'])
@@ -620,7 +680,7 @@ def api_reveal():
         clean_path = os.path.normpath(file_path)
         if os.path.exists(clean_path):
             # Using explorer.exe /select,path opens the directory and highlights the file
-            subprocess.run(["explorer", "/select,", clean_path])
+            subprocess.run(["explorer", f"/select,{clean_path}"])
             return jsonify({"success": True})
         else:
             # If the file doesn't exist (maybe deleted), check its parent directory

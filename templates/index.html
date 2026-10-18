@@ -1102,6 +1102,22 @@
                 </span>
             </div>
 
+            <div class="settings-row" style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
+                <label>Engine Version</label>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                    <div style="font-size: 13px;">
+                        <span style="color: var(--text-secondary);">yt-dlp version: </span>
+                        <strong id="ytdlpVersionText" style="color: var(--text-primary);">Loading...</strong>
+                    </div>
+                    <button class="browse-btn" id="updateYtdlpBtn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; margin-top: 0;">
+                        <svg class="update-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                        </svg>
+                        <span id="updateBtnText">Update Engine</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="cancelSettingsBtn">Cancel</button>
                 <button class="modal-btn modal-btn-save" id="saveSettingsBtn">Save Settings</button>
@@ -1160,6 +1176,8 @@
         const browseFolderBtn = document.getElementById('browseFolderBtn');
         const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const updateYtdlpBtn = document.getElementById('updateYtdlpBtn');
+        const updateBtnText = document.getElementById('updateBtnText');
         
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toastMessage');
@@ -1175,6 +1193,10 @@
                 appSettings = await res.json();
                 settingsDownloadFolder.value = appSettings.download_path || '';
                 settingsFfmpegFolder.value = appSettings.ffmpeg_path || '';
+                const versionEl = document.getElementById('ytdlpVersionText');
+                if (versionEl) {
+                    versionEl.textContent = appSettings.ytdlp_version || 'Unknown';
+                }
             } catch (err) {
                 showToast("Failed to load settings.", "error");
             }
@@ -1674,6 +1696,38 @@
                 showToast(err.message, "error");
             }
         });
+
+        // Update yt-dlp version
+        if (updateYtdlpBtn) {
+            updateYtdlpBtn.addEventListener('click', async () => {
+                updateYtdlpBtn.disabled = true;
+                updateBtnText.textContent = "Updating...";
+                
+                const updateIcon = updateYtdlpBtn.querySelector('.update-icon');
+                if (updateIcon) updateIcon.style.animation = 'spin 1s linear infinite';
+                
+                try {
+                    const res = await fetch('/api/update-ytdlp', { method: 'POST' });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        showToast(data.message, "success");
+                        const versionEl = document.getElementById('ytdlpVersionText');
+                        if (versionEl) {
+                            versionEl.textContent = data.new_version;
+                        }
+                    } else {
+                        showToast(data.error || "Failed to update engine.", "error");
+                    }
+                } catch (err) {
+                    showToast(err.message, "error");
+                } finally {
+                    updateYtdlpBtn.disabled = false;
+                    updateBtnText.textContent = "Update Engine";
+                    if (updateIcon) updateIcon.style.animation = 'none';
+                }
+            });
+        }
 
         // Fallback placeholder/explorer reveal helper
         function openFileDirectory(filePath) {
